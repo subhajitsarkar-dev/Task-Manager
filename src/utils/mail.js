@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import Mailgen from "mailgen";
 
-const sendMail = async (options) => {
+export const sendMail = async (options) => {
   const mailGenerator = new Mailgen({
     theme: "default",
     product: {
@@ -16,7 +16,7 @@ const sendMail = async (options) => {
 
   const transproter = nodemailer.createTransport({
     host: process.env.MAILTRAP_HOST,
-    port: process.env.MAILTRAP_HOST,
+    port: process.env.MAILTRAP_PORT,
     secure: false,
     auth: {
       user: process.env.MAILTRAP_USER,
@@ -39,7 +39,7 @@ const sendMail = async (options) => {
   }
 };
 
-const emailVerificationMailGenContent = (username, verificationUrl) => {
+export const emailVerificationMailGenContent = (username, verificationUrl) => {
   return {
     body: {
       name: username,
@@ -58,7 +58,7 @@ const emailVerificationMailGenContent = (username, verificationUrl) => {
     },
   };
 };
-const forgotPasswordVerificationEmail = (username, passwordResetUrl) => {
+export const forgotPasswordVerificationEmail = (username, passwordResetUrl) => {
   return {
     body: {
       name: username,
