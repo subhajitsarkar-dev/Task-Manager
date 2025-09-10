@@ -52,7 +52,6 @@ export const getProjectById = asyncHandler(async (req, res) => {
 export const createProject = asyncHandler(async (req, res) => {
   const { name, description } = req.body;
   const createdBy = req.user?._id;
-  console.log();
 
   try {
     const createdProject = await Project.create({
