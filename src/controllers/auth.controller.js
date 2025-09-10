@@ -315,7 +315,7 @@ export const refressAccessToken = asyncHandler(async (req, res) => {
 });
 
 export const forgotPasswordRequest = asyncHandler(async (req, res) => {
-  const { email, username, password, role } = req.body;
+  const { email } = req.body;
 });
 
 export const changeCurrentPassword = asyncHandler(async (req, res) => {
