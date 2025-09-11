@@ -1,9 +1,12 @@
 import { Router } from "express";
 import {
+  addMemberToProject,
   createProject,
   deleteProject,
   getProjectById,
+  getProjectMembers,
   getProjects,
+  removeMemberToProject,
   updateProject,
 } from "../controllers/project.controller.js";
 import {
@@ -29,5 +32,21 @@ router.delete(
   validateProjectPermission([UserRolesEnum.PROJECT_ADMIN]),
   deleteProject,
 );
+
+//members
+router.post(
+  "/:projectId/members/create-member",
+  isLoggedIn,
+  validateProjectPermission([UserRolesEnum.PROJECT_ADMIN]),
+  addMemberToProject,
+);
+
+router.delete(
+  "/:projectId/members/:memberId",
+  validateProjectPermission([UserRolesEnum.PROJECT_ADMIN]),
+  removeMemberToProject,
+);
+
+router.get("/:projectId/members", getProjectMembers);
 
 export default router;
