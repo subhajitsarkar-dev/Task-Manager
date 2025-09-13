@@ -2,12 +2,14 @@ import { Router } from "express";
 import {
   addMemberToProject,
   createProject,
+  deleteMember,
   deleteProject,
   getProjectById,
   getProjectMembers,
   getProjects,
   removeMemberToProject,
   updateProject,
+  updateProjectMembers,
 } from "../controllers/project.controller.js";
 import {
   isLoggedIn,
@@ -35,18 +37,33 @@ router.delete(
 
 //members
 router.post(
-  "/:projectId/members/create-member",
+  "/:projectId/member/create-member",
   isLoggedIn,
   validateProjectPermission([UserRolesEnum.PROJECT_ADMIN]),
   addMemberToProject,
 );
 
 router.delete(
-  "/:projectId/members/:memberId",
+  "/:projectId/member/:memberId",
+  isLoggedIn,
   validateProjectPermission([UserRolesEnum.PROJECT_ADMIN]),
   removeMemberToProject,
 );
 
 router.get("/:projectId/members", getProjectMembers);
 
+router.put(
+  "/:projectId/member/update-members",
+  isLoggedIn,
+  validateProjectPermission([UserRolesEnum.PROJECT_ADMIN]),
+  updateProjectMembers,
+); // Bulk update project members (Admin only)
+
+router
+  .route("/members/:memberId")
+  .delete(
+    isLoggedIn,
+    validateProjectPermission([UserRolesEnum.PROJECT_ADMIN]),
+    deleteMember,
+  );
 export default router;

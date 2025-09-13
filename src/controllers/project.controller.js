@@ -63,20 +63,15 @@ export const createProject = asyncHandler(async (req, res) => {
     });
 
     await ProjectMember.create({
-      user: createdBy,
-      project: createdProject._id,
-      role: UserRolesEnum.PROJECT_ADMIN,
+      project: new mongoose.Types.ObjectId(createProject._id),
+      user: new mongoose.Types.ObjectId(createdBy),
+      role: UserRolesEnum.ADMIN,
     });
-
-    // const populatedProject = await Project.findById(createProject._id).populate(
-    //   "createdBy",
-    //   "username fullname",
-    // );
 
     return res
       .status(201)
       .json(
-        new ApiResponse(201, createProject, "Project created successfully😊"),
+        new ApiResponse(201, createdProject, "Project created successfully😊"),
       );
   } catch (error) {
     return res
@@ -281,8 +276,126 @@ export const getProjectMembers = asyncHandler(async (req, res) => {
   }
 });
 
-export const updateProjectMembers = asyncHandler(async (req, res) => {});
+// export const updateProjectMembers = asyncHandler(async (req, res) => {
 
-export const updateProjectMemberRole = asyncHandler(async (req, res) => {});
+// });
 
-export const deleteMember = asyncHandler(async (req, res) => {});
+// export const updateProjectMemberRole = asyncHandler(async (req, res) => {});
+
+// export const deleteMember = asyncHandler(async (req, res) => {});
+
+export const updateProjectMemberRole = asyncHandler(async (req, res) => {
+  const { projectId, memberId } = req.params;
+  const { role } = req.body;
+
+  if (
+    !mongoose.Types.ObjectId.isValid(projectId) ||
+    !mongoose.Types.ObjectId.isValid(memberId)
+  ) {
+    throw new ApiError(400, "Invalid Project or Member ID");
+  }
+
+  if (!AvilableUserRoles.includes(role)) {
+    throw new ApiError(400, "Invalid role specified");
+  }
+
+  const existingProject = await Project.findById(projectId);
+  if (!existingProject) {
+    throw new ApiError(404, "Project not found!");
+  }
+
+  const existingMember = await ProjectMember.findOne({
+    project: new mongoose.Types.ObjectId(projectId),
+    _id: new mongoose.Types.ObjectId(memberId),
+  });
+
+  if (!existingMember) {
+    throw new ApiError(404, "Member not found in this project!");
+  }
+
+  const updatedMember = await ProjectMember.findByIdAndUpdate(
+    memberId,
+    { role },
+    { new: true },
+  ).populate("user", "username fullname email");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, updatedMember, "Member role updated successfully😊"),
+    );
+});
+
+export const deleteMember = asyncHandler(async (req, res) => {
+  const { memberId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(memberId)) {
+    throw new ApiError(400, "Invalid Member ID");
+  }
+
+  const deletedMember = await ProjectMember.findByIdAndDelete(memberId);
+
+  if (!deletedMember) {
+    throw new ApiError(404, "Member not found!");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Member deleted successfully😊"));
+});
+
+export const updateProjectMembers = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { members } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(projectId)) {
+    throw new ApiError(400, "Invalid Project ID");
+  }
+
+  const existingProject = await Project.findById(projectId);
+  if (!existingProject) {
+    throw new ApiError(404, "Project not found!");
+  }
+
+  const invalidRoles = members.filter(
+    (member) => !AvilableUserRoles.includes(member.role),
+  );
+
+  if (invalidRoles.length > 0) {
+    throw new ApiError(400, "Invalid role(s) specified");
+  }
+
+  await ProjectMember.deleteMany({
+    project: new mongoose.Types.ObjectId(projectId),
+  });
+
+  const memberPromises = members.map(async (member) => {
+    const user = await User.findById(member.userId);
+    if (!user) {
+      throw new ApiError(404, `User with ID ${member.userId} not found`);
+    }
+
+    return ProjectMember.create({
+      project: new mongoose.Types.ObjectId(projectId),
+      user: new mongoose.Types.ObjectId(member.userId),
+      role: member.role,
+    });
+  });
+
+  const newMembers = await Promise.all(memberPromises);
+
+  await ProjectMember.populate(newMembers, {
+    path: "user",
+    select: "username fullname email",
+  });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        newMembers,
+        "Project members updated successfully😊",
+      ),
+    );
+});
