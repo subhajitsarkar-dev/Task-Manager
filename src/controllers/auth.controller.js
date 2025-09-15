@@ -1,11 +1,14 @@
-import { asyncHandler } from "../utils/async-handler.js";
-import { User } from "../models/user.model.js";
-import { ApiResponse } from "../utils/api-response.js";
-import { ApiError } from "../utils/api-error.js";
-import { emailVerificationMailGenContent, sendMail } from "../utils/mail.js";
-import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { User } from "../models/user.model.js";
+import { ApiError } from "../utils/api-error.js";
+import { ApiResponse } from "../utils/api-response.js";
+import { asyncHandler } from "../utils/async-handler.js";
+import {
+  emailVerificationMailGenContent,
+  forgotPasswordVerificationEmail,
+  sendMail,
+} from "../utils/mail.js";
 
 export const registerUser = asyncHandler(async (req, res) => {
   const { email, username, fullname, password } = req.body;
@@ -316,12 +319,145 @@ export const refressAccessToken = asyncHandler(async (req, res) => {
 
 export const forgotPasswordRequest = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't throw an error if user doesn't exist (security best practice)
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            "If the email exists, a reset link has been sent",
+          ),
+        );
+    }
+
+    const { hashedToken, unHashedToken, tokenExpiry } =
+      await user.generateTemporaryToken();
+
+    user.forgotPasswordToken = hashedToken;
+    user.forgotPasswordExpiry = tokenExpiry;
+
+    await user.save({ validateBeforeSave: false }); // Skip validation when saving token
+
+    await sendMail({
+      email: user.email,
+      subject: "Password Reset - Task Manager",
+      mailGenContent: forgotPasswordVerificationEmail(
+        user.username,
+        `http://localhost:4000/api/v1/auth/reset-password/${unHashedToken}`,
+      ),
+    });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, "If the email exists, a reset link has been sent"),
+      );
+  } catch (error) {
+    // Reset token and expiry if email fails to send
+    user.forgotPasswordToken = undefined;
+    user.forgotPasswordExpiry = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return res
+      .status(500)
+      .json(
+        new ApiResponse(
+          500,
+          null,
+          error.message || "Forgot password request failed!",
+        ),
+      );
+  }
 });
 
 export const changeCurrentPassword = asyncHandler(async (req, res) => {
-  const { email, username, password, role } = req.body;
+  const { token } = req.params;
+  const { newPassword } = req.body;
+
+  if (!token) {
+    throw new ApiError(400, "Invalid token");
+  }
+  if (!newPassword) {
+    throw new ApiError(400, "Password is required");
+  }
+
+  try {
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      forgotPasswordToken: hashedToken,
+      forgotPasswordExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      throw new ApiError(400, "Invalid or expired verification token");
+    }
+
+    user.password = newPassword;
+    user.forgotPasswordToken = undefined;
+    user.forgotPasswordExpiry = undefined;
+
+    await user.save(); // Save the user with new password
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "Password reset successfully!"));
+  } catch (error) {
+    return res
+      .status(error.statusCode || 500)
+      .json(
+        new ApiResponse(
+          error.statusCode || 500,
+          null,
+          error.message || "Password reset failed!",
+        ),
+      );
+  }
 });
 
 export const curentUser = asyncHandler(async (req, res) => {
-  const { email, username, password, role } = req.body;
+  try {
+    const currentUser = await User.findById(req.user._id).select("-password");
+    if (!currentUser) {
+      throw new ApiError(500, "CurrentUser not found!");
+    }
+
+    return res
+      .status(201)
+      .json(new ApiResponse(201, currentUser, "Get current user!"));
+  } catch (error) {
+    return res
+      .status(500)
+      .json(
+        new ApiResponse(
+          500,
+          null,
+          error.message || "Current User Getting failed!",
+        ),
+      );
+  }
+});
+
+export const getAllUser = asyncHandler(async (req, res) => {
+  try {
+    const users = await User.find().select("password");
+    if (!users) {
+      throw new ApiError(500, "All user not found!");
+    }
+
+    return res.status(201).json(new ApiResponse(201, users, "Get all user!"));
+  } catch (error) {
+    return res
+      .status(500)
+      .json(
+        new ApiResponse(
+          500,
+          null,
+          error.message || "Current User Getting failed!",
+        ),
+      );
+  }
 });

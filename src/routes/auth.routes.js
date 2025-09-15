@@ -1,5 +1,9 @@
 import { Router } from "express";
 import {
+  changeCurrentPassword,
+  curentUser,
+  forgotPasswordRequest,
+  getAllUser,
   loginUser,
   logoutUser,
   registerUser,
@@ -16,6 +20,9 @@ router.post("/register", registrationValidator(), validate, registerUser);
 router.get("/verify/:token", verifyEmail);
 router.post("/resendverifyemail", resendVerifyEmail);
 router.post("/login", loginValidator(), validate, loginUser);
-router.get("/logout", isLoggedIn, logoutUser);
+router.post("/forgotpassword", isLoggedIn, forgotPasswordRequest);
+router.patch("/verify/:token", isLoggedIn, changeCurrentPassword);
+router.get("/me", isLoggedIn, curentUser);
+router.get("/users", isLoggedIn, getAllUser);
 
 export default router;
