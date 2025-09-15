@@ -53,26 +53,24 @@ export const getProjectById = asyncHandler(async (req, res) => {
 
 export const createProject = asyncHandler(async (req, res) => {
   const { name, description } = req.body;
-  const createdBy = req.user?._id;
+  const createdBy = req.user._id;
 
   try {
-    const createdProject = await Project.create({
+    const project = await Project.create({
       name,
       description,
       createdBy,
     });
 
     await ProjectMember.create({
-      project: new mongoose.Types.ObjectId(createProject._id),
+      project: new mongoose.Types.ObjectId(project._id),
       user: new mongoose.Types.ObjectId(createdBy),
-      role: UserRolesEnum.ADMIN,
+      role: UserRolesEnum.PROJECT_ADMIN,
     });
 
     return res
       .status(201)
-      .json(
-        new ApiResponse(201, createdProject, "Project created successfully😊"),
-      );
+      .json(new ApiResponse(201, project, "Project created successfully😊"));
   } catch (error) {
     return res
       .status(500)
