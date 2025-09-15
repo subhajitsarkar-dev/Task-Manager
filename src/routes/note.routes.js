@@ -17,7 +17,11 @@ const router = Router();
 router
   .route("/:projectId/notes")
   .get(isLoggedIn, validateProjectPermission(AvilableUserRoles), getNotes)
-  .post(isLoggedIn, createNote);
+  .post(
+    isLoggedIn,
+    validateProjectPermission([UserRolesEnum.PROJECT_ADMIN]),
+    createNote,
+  );
 
 router
   .route("/:projectId/notes/:noteId")
